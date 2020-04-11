@@ -3,27 +3,45 @@ from torch import nn, optim
 import torch.nn.functional as F
 
 
-class Net(nn.Module):
-    def __init__(self):
-        super(Net, self).__init__()
-        self.hid = nn.Linear(2, 2)
-        self.out = nn.Linear(2, 1)
-    
+class Net():
+    def __init__(self, arch):
+        self.arch = arch
+        self.W = None
+        
     def forward(self, x):
-        x = F.relu(self.hid(x))
-        x = self.out(x)
+        for i in range(len(self.arch) // 2 - 1):
+            x = F.relu(F.linear(x, weight=self.W[2 * i].T, bias=self.W[2 * i + 1]))
+        x = F.linear(x, weight=self.W[-2].T, bias=self.W[-1])
         return x
+    
+    def set_weights(self, W):
+        self.W = W
+        
+    def __call__(self, x):
+        return self.forward(x)
 
 
-class Teacher(nn.Module):
-    def __init__(self, cardinality):
-        super(Teacher, self).__init__()
-        self.hid1 = nn.Linear(cardinality, 100)
-        self.hid2 = nn.Linear(100, 100)
-        self.out = nn.Linear(100, cardinality)
-    
+
+class NetCifar10():
+    def __init__(self, arch):
+        self.arch = arch
+        self._initialize_weights()
+        
     def forward(self, x):
-        x = F.relu(self.hid1(x))
-        x = F.relu(self.hid2(x))
-        x = self.out(x)
+        x = x.view(-1, 32 * 32 * 3)
+        for i in range(len(self.arch) // 2 - 1):
+            x = F.relu(F.linear(x, weight=self.W[2 * i].T, bias=self.W[2 * i + 1]))
+        x = F.linear(x, weight=self.W[-2].T, bias=self.W[-1])
         return x
+    
+    def set_weights(self, W):
+        self.W = W
+        
+    def _initialize_weights(self):
+        weights = []
+        for shape in self.arch:
+            weights.append(torch.randn(shape))
+        self.W = weights
+        
+    def __call__(self, x):
+        return self.forward(x)

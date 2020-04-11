@@ -1,16 +1,26 @@
 import torch
+import numpy as np
+
+def get_cardinality(arch):
+    return sum(map(np.prod, arch))
+
+
+def format_to_shapes(vector, shapes_list):
+    j = 0
+    out = []
+    for i in range(len(shapes_list)):
+        s = np.prod(shapes_list[i])
+        out.append(vector[j : j + s].reshape(shapes_list[i]))
+        j += s
+    return out
+
 
 def vectorize_weights(params):
     return torch.cat([torch.flatten(w.data) for w in params])
 
 
-def get_state_dict(state_dict, weights_vector):
-    i = 0
-    state_dict_keys = list(state_dict.keys())
-    for key in state_dict_keys:
-        old_weights = state_dict[key]
-        p_size = torch.numel(old_weights)
-        new_weights = weights_vector[i : i + p_size].reshape_as(old_weights)
-        state_dict[key] = new_weights
-        i += p_size
-    return state_dict
+def teach(teacher, net):
+    W = vectorize_weights(net.W)
+    W = teacher(W)
+    W = format_to_shapes(W, net.arch)
+    net.set_weights(W)
